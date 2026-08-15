@@ -1,5 +1,7 @@
 package domain
 
+import "sort"
+
 type Status string
 
 const (
@@ -24,6 +26,9 @@ func ReviewBatch(batch Batch) (Review, error) {
 	if err := batch.Validate(); err != nil {
 		return Review{}, err
 	}
+	sort.Slice(batch.Claims, func(i, j int) bool {
+		return batch.Claims[i].ID < batch.Claims[j].ID
+	})
 
 	result := Review{
 		Period:    batch.Period,

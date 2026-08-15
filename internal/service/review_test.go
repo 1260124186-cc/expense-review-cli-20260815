@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/1260124186-cc/expense-review-cli-20260815/internal/domain"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/service"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/store"
 )
@@ -49,6 +50,33 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	if got, want := string(data), "period=2026-08 total_cents=1\n"; got != want {
 		t.Fatalf("published output = %q, want %q", got, want)
 	}
+}
+
+func TestReviewDoesNotReorderRepositoryClaims(t *testing.T) {
+	batch := domain.Batch{
+		Period: "2026-08",
+		Policy: domain.DefaultPolicy(),
+		Claims: []domain.Claim{
+			{ID: "z-last", Employee: "Ari", Category: "meals", AmountCents: 4200},
+			{ID: "a-first", Employee: "Bo", Category: "meals", AmountCents: 4300},
+		},
+	}
+	reviewer := service.New(staticRepository{batch: batch}, store.NewAtomicWriter())
+
+	if _, err := reviewer.Review(context.Background(), "ignored"); err != nil {
+		t.Fatalf("Review() error = %v", err)
+	}
+	if got, want := batch.Claims[0].ID, "z-last"; got != want {
+		t.Fatalf("repository claim order changed to %q, want %q", got, want)
+	}
+}
+
+type staticRepository struct {
+	batch domain.Batch
+}
+
+func (r staticRepository) Load(context.Context, string) (domain.Batch, error) {
+	return r.batch, nil
 }
 
 func writeInput(t *testing.T, content string) string {
