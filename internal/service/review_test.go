@@ -2,11 +2,13 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/1260124186-cc/expense-review-cli-20260815/internal/domain"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/service"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/store"
 )
@@ -51,20 +53,65 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	}
 }
 
-func TestReviewHonorsCanceledContext(t *testing.T) {
+func TestCancelledRequestStopsWithoutResult(t *testing.T) {
 	input := writeInput(t, `{
 		"period": "2026-08",
 		"claims": [
-			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":4200,"receipt_ids":[]}
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":6000,"receipt_ids":[]},
+			{"id":"trip-1","employee":"Bo","category":"travel","amount_cents":81000,"receipt_ids":["r-9"]}
 		]
 	}`)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
 	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
 
-	if _, err := reviewer.Review(ctx, input); err == nil {
-		t.Fatal("Review() error = nil, want canceled context")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	rendered, err := reviewer.ReviewAndRender(ctx, input)
+	if err == nil {
+		t.Fatalf("ReviewAndRender() expected error for cancelled context, got nil with rendered=%q", rendered)
 	}
+	if rendered != "" {
+		t.Fatalf("ReviewAndRender() returned rendered output for cancelled context: %q", rendered)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReviewAndRender() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestCancelledBetweenLoadAndReviewAbortsResult(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":6000,"receipt_ids":[]},
+			{"id":"trip-1","employee":"Bo","category":"travel","amount_cents":81000,"receipt_ids":["r-9"]}
+		]
+	}`)
+	reviewer := service.New(cancelAfterLoadRepo{t: t, inner: store.NewJSONRepository()}, store.NewAtomicWriter())
+
+	rendered, err := reviewer.ReviewAndRender(context.Background(), input)
+	if err == nil {
+		t.Fatalf("ReviewAndRender() expected error for cancelled context, got nil with rendered=%q", rendered)
+	}
+	if rendered != "" {
+		t.Fatalf("ReviewAndRender() returned rendered output for cancelled context: %q", rendered)
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReviewAndRender() error = %v, want context.Canceled", err)
+	}
+}
+
+type cancelAfterLoadRepo struct {
+	t     *testing.T
+	inner service.Repository
+}
+
+func (r cancelAfterLoadRepo) Load(ctx context.Context, path string) (domain.Batch, error) {
+	batch, err := r.inner.Load(ctx, path)
+	if err != nil {
+		return domain.Batch{}, err
+	}
+	r.t.Logf("Load completed; cancelling context to simulate cancellation between load and review")
+	return batch, context.Canceled
 }
 
 func writeInput(t *testing.T, content string) string {

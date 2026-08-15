@@ -35,9 +35,19 @@ type inputClaim struct {
 }
 
 func (JSONRepository) Load(ctx context.Context, path string) (domain.Batch, error) {
+	// 调用方已取消则不读取输入
+	if err := ctx.Err(); err != nil {
+		return domain.Batch{}, err
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return domain.Batch{}, fmt.Errorf("read claim batch: %w", err)
+	}
+
+	// 读盘期间取消则放弃解析结果
+	if err := ctx.Err(); err != nil {
+		return domain.Batch{}, err
 	}
 
 	var input inputBatch
