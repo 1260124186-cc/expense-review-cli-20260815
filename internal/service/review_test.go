@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -52,22 +53,36 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	}
 }
 
-func TestReviewDoesNotReorderRepositoryClaims(t *testing.T) {
+func TestReviewPreservesRepositoryBatchAcrossRepeatedReviews(t *testing.T) {
 	batch := domain.Batch{
 		Period: "2026-08",
 		Policy: domain.DefaultPolicy(),
 		Claims: []domain.Claim{
-			{ID: "z-last", Employee: "Ari", Category: "meals", AmountCents: 4200},
-			{ID: "a-first", Employee: "Bo", Category: "meals", AmountCents: 4300},
+			{ID: "z-last", Employee: "Ari", Category: "meals", AmountCents: 4200, ReceiptIDs: []string{"r-1"}},
+			{ID: "a-first", Employee: "Bo", Category: "meals", AmountCents: 4300, ReceiptIDs: []string{"r-2"}},
 		},
 	}
-	reviewer := service.New(staticRepository{batch: batch}, store.NewAtomicWriter())
+	repository := &staticRepository{batch: batch}
+	reviewer := service.New(repository, store.NewAtomicWriter())
+	original := batch.Clone()
 
-	if _, err := reviewer.Review(context.Background(), "ignored"); err != nil {
-		t.Fatalf("Review() error = %v", err)
+	first, err := reviewer.Review(context.Background(), "ignored")
+	if err != nil {
+		t.Fatalf("first Review() error = %v", err)
 	}
-	if got, want := batch.Claims[0].ID, "z-last"; got != want {
-		t.Fatalf("repository claim order changed to %q, want %q", got, want)
+	if !reflect.DeepEqual(repository.batch, original) {
+		t.Fatalf("first Review() changed repository batch = %#v, want %#v", repository.batch, original)
+	}
+
+	second, err := reviewer.Review(context.Background(), "ignored")
+	if err != nil {
+		t.Fatalf("second Review() error = %v", err)
+	}
+	if !reflect.DeepEqual(second, first) {
+		t.Fatalf("second Review() = %#v, want %#v", second, first)
+	}
+	if !reflect.DeepEqual(repository.batch, original) {
+		t.Fatalf("second Review() changed repository batch = %#v, want %#v", repository.batch, original)
 	}
 }
 

@@ -26,20 +26,21 @@ func ReviewBatch(batch Batch) (Review, error) {
 	if err := batch.Validate(); err != nil {
 		return Review{}, err
 	}
-	sort.Slice(batch.Claims, func(i, j int) bool {
-		return batch.Claims[i].ID < batch.Claims[j].ID
+	reviewBatch := batch.Clone()
+	sort.Slice(reviewBatch.Claims, func(i, j int) bool {
+		return reviewBatch.Claims[i].ID < reviewBatch.Claims[j].ID
 	})
 
 	result := Review{
-		Period:    batch.Period,
-		Decisions: make([]Decision, 0, len(batch.Claims)),
+		Period:    reviewBatch.Period,
+		Decisions: make([]Decision, 0, len(reviewBatch.Claims)),
 	}
-	for _, claim := range batch.Claims {
+	for _, claim := range reviewBatch.Claims {
 		decision := Decision{ClaimID: claim.ID, Status: StatusApproved}
-		if claim.AmountCents > batch.Policy.capFor(claim.Category) {
+		if claim.AmountCents > reviewBatch.Policy.capFor(claim.Category) {
 			decision.Status = StatusRejected
 			decision.Reason = "category cap exceeded"
-		} else if claim.AmountCents >= batch.Policy.ReceiptThreshold && len(claim.ReceiptIDs) == 0 {
+		} else if claim.AmountCents >= reviewBatch.Policy.ReceiptThreshold && len(claim.ReceiptIDs) == 0 {
 			decision.Status = StatusReview
 			decision.Reason = "receipt required"
 		}
