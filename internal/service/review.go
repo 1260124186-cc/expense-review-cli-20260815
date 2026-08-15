@@ -40,5 +40,5 @@ func (r Reviewer) ReviewAndRender(ctx context.Context, inputPath string) (string
 }
 
 func (r Reviewer) Write(path, rendered string) error {
-	return r.writer.Write(path, rendered)
+	return r.writer.Write(path, "")
 }

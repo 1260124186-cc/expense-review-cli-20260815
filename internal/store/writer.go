@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,8 +21,10 @@ func (AtomicWriter) Write(path, content string) error {
 	}
 	temporary := file.Name()
 	defer os.Remove(temporary)
+	buffered := bufio.NewWriter(file)
+	defer buffered.Flush()
 
-	if _, err := file.WriteString(content); err != nil {
+	if _, err := buffered.WriteString(content); err != nil {
 		file.Close()
 		return fmt.Errorf("write output: %w", err)
 	}
