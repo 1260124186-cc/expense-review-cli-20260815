@@ -22,11 +22,19 @@ func (AtomicWriter) Write(path, content string) error {
 	temporary := file.Name()
 	defer os.Remove(temporary)
 	buffered := bufio.NewWriter(file)
-	defer buffered.Flush()
 
 	if _, err := buffered.WriteString(content); err != nil {
 		file.Close()
 		return fmt.Errorf("write output: %w", err)
+	}
+	if err := buffered.Flush(); err != nil {
+		file.Close()
+		return fmt.Errorf("flush output: %w", err)
+	}
+	// Ensure the complete review reaches the temporary file before publishing it.
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return fmt.Errorf("sync output: %w", err)
 	}
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close output: %w", err)
