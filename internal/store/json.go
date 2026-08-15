@@ -58,7 +58,11 @@ func (JSONRepository) Load(ctx context.Context, path string) (domain.Batch, erro
 func toDomain(input inputBatch) domain.Batch {
 	policy := domain.DefaultPolicy()
 	if input.Policy != nil {
-		policy.CategoryCaps = input.Policy.CategoryCaps
+		if input.Policy.CategoryCaps != nil {
+			for category, cap := range input.Policy.CategoryCaps {
+				policy.CategoryCaps[category] = cap
+			}
+		}
 		if input.Policy.ReceiptThreshold != nil {
 			policy.ReceiptThreshold = *input.Policy.ReceiptThreshold
 		}

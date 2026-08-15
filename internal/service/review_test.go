@@ -70,6 +70,35 @@ func TestReviewUsesDefaultCapsWhenPolicyOmitsCategoryCaps(t *testing.T) {
 	}
 }
 
+func TestReviewMergesCustomCategoryCapsWithDefaults(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"policy": {
+			"category_caps": {
+				"meals": 3000
+			}
+		},
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":4000,"receipt_ids":[]},
+			{"id":"trip-1","employee":"Bo","category":"travel","amount_cents":75000,"receipt_ids":["r-9"]}
+		]
+	}`)
+	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
+
+	rendered, err := reviewer.ReviewAndRender(context.Background(), input)
+	if err != nil {
+		t.Fatalf("ReviewAndRender() error = %v", err)
+	}
+	for _, want := range []string{
+		"meal-1=rejected (category cap exceeded)",
+		"trip-1=approved",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("rendered output missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
 func writeInput(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "claims.json")
