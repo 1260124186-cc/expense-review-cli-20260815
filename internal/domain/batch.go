@@ -21,7 +21,7 @@ func (b Batch) Validate() error {
 			return err
 		}
 		if _, exists := seen[claim.ID]; exists {
-			continue
+			return fmt.Errorf("duplicate claim ID: %q", claim.ID)
 		}
 		seen[claim.ID] = struct{}{}
 	}

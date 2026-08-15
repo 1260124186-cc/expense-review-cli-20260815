@@ -61,8 +61,15 @@ func TestReviewRejectsDuplicateClaims(t *testing.T) {
 	}`)
 	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
 
-	if _, err := reviewer.ReviewAndRender(context.Background(), input); err == nil {
+	rendered, err := reviewer.ReviewAndRender(context.Background(), input)
+	if err == nil {
 		t.Fatal("ReviewAndRender() error = nil, want duplicate input rejection")
+	}
+	if rendered != "" {
+		t.Fatalf("ReviewAndRender() output = %q, want no successful review", rendered)
+	}
+	if got, want := err.Error(), `duplicate claim ID: "meal-1"`; !strings.Contains(got, want) {
+		t.Fatalf("ReviewAndRender() error = %q, want message containing %q", got, want)
 	}
 }
 

@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBatchRejectsDuplicateClaimIDs(t *testing.T) {
 	batch := Batch{
@@ -11,7 +14,11 @@ func TestBatchRejectsDuplicateClaimIDs(t *testing.T) {
 			{ID: "meal-1", Employee: "Bo", Category: "meals", AmountCents: 4300},
 		},
 	}
-	if err := batch.Validate(); err == nil {
+	err := batch.Validate()
+	if err == nil {
 		t.Fatal("Validate() error = nil, want duplicate claim rejection")
+	}
+	if got, want := err.Error(), `duplicate claim ID: "meal-1"`; !strings.Contains(got, want) {
+		t.Fatalf("Validate() error = %q, want message containing %q", got, want)
 	}
 }
