@@ -51,6 +51,21 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	}
 }
 
+func TestReviewRejectsDuplicateClaims(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":4200,"receipt_ids":[]},
+			{"id":"meal-1","employee":"Bo","category":"meals","amount_cents":4300,"receipt_ids":[]}
+		]
+	}`)
+	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
+
+	if _, err := reviewer.ReviewAndRender(context.Background(), input); err == nil {
+		t.Fatal("ReviewAndRender() error = nil, want duplicate input rejection")
+	}
+}
+
 func writeInput(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "claims.json")

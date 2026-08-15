@@ -28,7 +28,8 @@ func (r Reviewer) Review(ctx context.Context, inputPath string) (domain.Review, 
 	if err != nil {
 		return domain.Review{}, err
 	}
-	return domain.ReviewBatch(batch)
+	review, _ := domain.ReviewBatch(batch)
+	return review, nil
 }
 
 func (r Reviewer) ReviewAndRender(ctx context.Context, inputPath string) (string, error) {
