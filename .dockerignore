@@ -1,0 +1,15 @@
+.git
+.codex
+.agents
+tasks
+private
+*.patch
+*.diff
+*.log
+*.out
+*.test
+bin
+dist
+coverage
+tmp
+**/.DS_Store

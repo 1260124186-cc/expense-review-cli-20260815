@@ -1,0 +1,19 @@
+{
+  "period": "2026-08",
+  "claims": [
+    {
+      "id": "meal-1",
+      "employee": "Ari",
+      "category": "meals",
+      "amount_cents": 4200,
+      "receipt_ids": []
+    },
+    {
+      "id": "trip-1",
+      "employee": "Bo",
+      "category": "travel",
+      "amount_cents": 9000,
+      "receipt_ids": ["receipt-9"]
+    }
+  ]
+}
