@@ -2,11 +2,13 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/1260124186-cc/expense-review-cli-20260815/internal/domain"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/service"
 	"github.com/1260124186-cc/expense-review-cli-20260815/internal/store"
 )
@@ -65,6 +67,38 @@ func TestReviewHonorsCanceledContext(t *testing.T) {
 	if _, err := reviewer.Review(ctx, input); err == nil {
 		t.Fatal("Review() error = nil, want canceled context")
 	}
+}
+
+func TestReviewAndRenderStopsWhenCanceledAfterLoad(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	repository := repositoryFunc(func(context.Context, string) (domain.Batch, error) {
+		cancel()
+		return domain.Batch{
+			Period: "2026-08",
+			Policy: domain.DefaultPolicy(),
+			Claims: []domain.Claim{{
+				ID:          "meal-1",
+				Employee:    "Ari",
+				Category:    "meals",
+				AmountCents: 4200,
+			}},
+		}, nil
+	})
+	reviewer := service.New(repository, store.NewAtomicWriter())
+
+	rendered, err := reviewer.ReviewAndRender(ctx, "claims.json")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReviewAndRender() error = %v, want context.Canceled", err)
+	}
+	if rendered != "" {
+		t.Fatalf("ReviewAndRender() rendered = %q, want no completed result", rendered)
+	}
+}
+
+type repositoryFunc func(context.Context, string) (domain.Batch, error)
+
+func (f repositoryFunc) Load(ctx context.Context, path string) (domain.Batch, error) {
+	return f(ctx, path)
 }
 
 func writeInput(t *testing.T, content string) string {

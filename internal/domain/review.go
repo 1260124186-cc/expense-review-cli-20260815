@@ -1,5 +1,7 @@
 package domain
 
+import "context"
+
 type Status string
 
 const (
@@ -21,6 +23,13 @@ type Review struct {
 }
 
 func ReviewBatch(batch Batch) (Review, error) {
+	return ReviewBatchContext(context.Background(), batch)
+}
+
+func ReviewBatchContext(ctx context.Context, batch Batch) (Review, error) {
+	if err := ctx.Err(); err != nil {
+		return Review{}, err
+	}
 	if err := batch.Validate(); err != nil {
 		return Review{}, err
 	}
@@ -30,6 +39,9 @@ func ReviewBatch(batch Batch) (Review, error) {
 		Decisions: make([]Decision, 0, len(batch.Claims)),
 	}
 	for _, claim := range batch.Claims {
+		if err := ctx.Err(); err != nil {
+			return Review{}, err
+		}
 		decision := Decision{ClaimID: claim.ID, Status: StatusApproved}
 		if claim.AmountCents > batch.Policy.capFor(claim.Category) {
 			decision.Status = StatusRejected

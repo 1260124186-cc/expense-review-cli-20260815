@@ -35,9 +35,15 @@ type inputClaim struct {
 }
 
 func (JSONRepository) Load(ctx context.Context, path string) (domain.Batch, error) {
+	if err := ctx.Err(); err != nil {
+		return domain.Batch{}, err
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return domain.Batch{}, fmt.Errorf("read claim batch: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return domain.Batch{}, err
 	}
 
 	var input inputBatch
