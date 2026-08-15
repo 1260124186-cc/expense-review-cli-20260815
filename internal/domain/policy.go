@@ -7,13 +7,7 @@ type Policy struct {
 
 func DefaultPolicy() Policy {
 	return Policy{
-		CategoryCaps: map[string]int64{
-			"meals":    7_500,
-			"supplies": 20_000,
-			"travel":   80_000,
-			"training": 50_000,
-			"misc":     10_000,
-		},
+		CategoryCaps:     nil,
 		ReceiptThreshold: 5_000,
 	}
 }

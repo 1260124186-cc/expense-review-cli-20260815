@@ -51,6 +51,25 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	}
 }
 
+func TestReviewUsesDefaultCapsWhenPolicyOmitsCategoryCaps(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"policy": {},
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":4200,"receipt_ids":[]}
+		]
+	}`)
+	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
+
+	rendered, err := reviewer.ReviewAndRender(context.Background(), input)
+	if err != nil {
+		t.Fatalf("ReviewAndRender() error = %v", err)
+	}
+	if !strings.Contains(rendered, "meal-1=approved") {
+		t.Fatalf("rendered output = %q, want an approved meal claim", rendered)
+	}
+}
+
 func writeInput(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "claims.json")
