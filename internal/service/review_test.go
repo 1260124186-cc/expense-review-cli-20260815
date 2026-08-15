@@ -51,6 +51,22 @@ func TestWritePublishesRenderedReview(t *testing.T) {
 	}
 }
 
+func TestReviewHonorsCanceledContext(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":4200,"receipt_ids":[]}
+		]
+	}`)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
+
+	if _, err := reviewer.Review(ctx, input); err == nil {
+		t.Fatal("Review() error = nil, want canceled context")
+	}
+}
+
 func writeInput(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "claims.json")
