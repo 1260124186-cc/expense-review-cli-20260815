@@ -26,15 +26,17 @@ func ReviewBatch(batch Batch) (Review, error) {
 	if err := batch.Validate(); err != nil {
 		return Review{}, err
 	}
-	sort.Slice(batch.Claims, func(i, j int) bool {
-		return batch.Claims[i].ID < batch.Claims[j].ID
+	// 在克隆副本上排序，避免改写调用方/仓储保留的原始批次顺序
+	ordered := batch.Clone()
+	sort.Slice(ordered.Claims, func(i, j int) bool {
+		return ordered.Claims[i].ID < ordered.Claims[j].ID
 	})
 
 	result := Review{
-		Period:    batch.Period,
-		Decisions: make([]Decision, 0, len(batch.Claims)),
+		Period:    ordered.Period,
+		Decisions: make([]Decision, 0, len(ordered.Claims)),
 	}
-	for _, claim := range batch.Claims {
+	for _, claim := range ordered.Claims {
 		decision := Decision{ClaimID: claim.ID, Status: StatusApproved}
 		if claim.AmountCents > batch.Policy.capFor(claim.Category) {
 			decision.Status = StatusRejected

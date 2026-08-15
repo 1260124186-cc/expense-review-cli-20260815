@@ -71,6 +71,56 @@ func TestReviewDoesNotReorderRepositoryClaims(t *testing.T) {
 	}
 }
 
+func TestReviewRepeatedReviewKeepsRepositoryOrderStable(t *testing.T) {
+	batch := domain.Batch{
+		Period: "2026-08",
+		Policy: domain.DefaultPolicy(),
+		Claims: []domain.Claim{
+			{ID: "z-last", Employee: "Ari", Category: "meals", AmountCents: 4200},
+			{ID: "a-first", Employee: "Bo", Category: "meals", AmountCents: 4300},
+		},
+	}
+	reviewer := service.New(staticRepository{batch: batch}, store.NewAtomicWriter())
+
+	for i := 0; i < 3; i++ {
+		review, err := reviewer.Review(context.Background(), "ignored")
+		if err != nil {
+			t.Fatalf("Review() pass %d error = %v", i, err)
+		}
+		if got, want := batch.Claims[0].ID, "z-last"; got != want {
+			t.Fatalf("pass %d repository order changed to %q, want %q", i, got, want)
+		}
+		if got, want := review.Decisions[0].ClaimID, "a-first"; got != want {
+			t.Fatalf("pass %d first decision = %q, want %q", i, got, want)
+		}
+	}
+}
+
+func TestReviewAndRenderNormalReview(t *testing.T) {
+	input := writeInput(t, `{
+		"period": "2026-08",
+		"claims": [
+			{"id":"meal-1","employee":"Ari","category":"meals","amount_cents":3000,"receipt_ids":[]},
+			{"id":"trip-1","employee":"Bo","category":"travel","amount_cents":9000,"receipt_ids":["r-9"]}
+		]
+	}`)
+	reviewer := service.New(store.NewJSONRepository(), store.NewAtomicWriter())
+
+	rendered, err := reviewer.ReviewAndRender(context.Background(), input)
+	if err != nil {
+		t.Fatalf("ReviewAndRender() error = %v", err)
+	}
+	for _, want := range []string{
+		"period=2026-08 total_cents=12000",
+		"meal-1=approved",
+		"trip-1=approved",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Errorf("rendered output missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
 type staticRepository struct {
 	batch domain.Batch
 }
